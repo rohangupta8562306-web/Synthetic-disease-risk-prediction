@@ -7,6 +7,7 @@ a sanity re-check) without needing to retrain the model.
 """
 
 import os
+import sys
 import json
 
 import joblib
@@ -22,12 +23,25 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.join(BASE_DIR, "src")
+for p in [BASE_DIR, SRC_DIR]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 try:
     from src.data_preprocessing import load_and_prepare
 except ImportError:
     from data_preprocessing import load_and_prepare
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Ensure namespace aliases exist for unpickling
+try:
+    import data_preprocessing as _dp
+    sys.modules.setdefault("src.data_preprocessing", _dp)
+    sys.modules.setdefault("data_preprocessing", _dp)
+except Exception:
+    pass
+
 DATA_PATH = os.path.join(BASE_DIR, "data", "Synthetic_disease_risk_dataset.csv")
 MODEL_PATH = os.path.join(BASE_DIR, "models", "disease_risk_model.pkl")
 PREPROCESSOR_PATH = os.path.join(BASE_DIR, "models", "preprocessing_pipeline.pkl")
@@ -39,13 +53,15 @@ RANDOM_STATE = 42
 def load_saved_metrics() -> dict:
     """
     Load the pre-computed metrics summary produced during training.
-    This is what the Streamlit "Model Performance" page uses, so the app
-    never needs to retrain the model just to display numbers.
+    If missing, automatically computes and creates them.
     """
     if not os.path.exists(METRICS_PATH):
-        raise FileNotFoundError(
-            "model_metrics.json not found. Please run `python src/train_model.py` first."
-        )
+        try:
+            from src.train_model import train_and_select_best_model
+        except ImportError:
+            from train_model import train_and_select_best_model
+        return train_and_select_best_model()
+
     with open(METRICS_PATH, "r") as f:
         return json.load(f)
 

@@ -258,7 +258,7 @@
           1.0
         ]
       },
-      "training_time_seconds": 0.005
+      "training_time_seconds": 0.126
     },
     "Decision Tree": {
       "accuracy": 0.8725,
@@ -340,7 +340,7 @@
           1.0
         ]
       },
-      "training_time_seconds": 0.008
+      "training_time_seconds": 0.055
     },
     "Random Forest": {
       "accuracy": 0.92875,
@@ -560,7 +560,7 @@
           1.0
         ]
       },
-      "training_time_seconds": 0.656
+      "training_time_seconds": 3.389
     },
     "Gradient Boosting": {
       "accuracy": 0.9375,
@@ -720,7 +720,7 @@
           1.0
         ]
       },
-      "training_time_seconds": 0.993
+      "training_time_seconds": 4.616
     }
   }
 }

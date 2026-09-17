@@ -9,15 +9,29 @@ This module is used directly by the Streamlit application (app.py).
 """
 
 import os
+import sys
 import joblib
 import pandas as pd
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.join(BASE_DIR, "src")
+for p in [BASE_DIR, SRC_DIR]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 try:
     from src.data_preprocessing import ALL_FEATURES, NUMERIC_FEATURES, CATEGORICAL_FEATURES
 except ImportError:
     from data_preprocessing import ALL_FEATURES, NUMERIC_FEATURES, CATEGORICAL_FEATURES
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Ensure both module namespaces exist for pickle deserialization compatibility
+try:
+    import data_preprocessing as _dp
+    sys.modules.setdefault("src.data_preprocessing", _dp)
+    sys.modules.setdefault("data_preprocessing", _dp)
+except Exception:
+    pass
+
 MODEL_PATH = os.path.join(BASE_DIR, "models", "disease_risk_model.pkl")
 PREPROCESSOR_PATH = os.path.join(BASE_DIR, "models", "preprocessing_pipeline.pkl")
 
@@ -30,22 +44,30 @@ class ModelNotFoundError(Exception):
 def load_artifacts():
     """
     Load the trained model and preprocessing pipeline from disk.
-
-    Raises
-    ------
-    ModelNotFoundError
-        If either artifact file is missing (e.g. training hasn't been run
-        yet), with a clear, actionable error message.
+    If artifacts are missing or fail to unpickle due to version/module
+    discrepancies in the hosting environment, automatically trains them
+    on the fly.
     """
-    if not os.path.exists(MODEL_PATH) or not os.path.exists(PREPROCESSOR_PATH):
-        raise ModelNotFoundError(
-            "Trained model files were not found. Please run "
-            "`python src/train_model.py` first to train and save the model."
-        )
+    need_train = not os.path.exists(MODEL_PATH) or not os.path.exists(PREPROCESSOR_PATH)
+    if not need_train:
+        try:
+            model = joblib.load(MODEL_PATH)
+            preprocessor = joblib.load(PREPROCESSOR_PATH)
+            return model, preprocessor
+        except Exception as err:
+            print(f"[prediction] Warning: Artifact loading failed ({err}). Retraining model on the fly...")
 
-    model = joblib.load(MODEL_PATH)
-    preprocessor = joblib.load(PREPROCESSOR_PATH)
-    return model, preprocessor
+    try:
+        try:
+            from src.train_model import train_and_select_best_model
+        except ImportError:
+            from train_model import train_and_select_best_model
+        train_and_select_best_model()
+        model = joblib.load(MODEL_PATH)
+        preprocessor = joblib.load(PREPROCESSOR_PATH)
+        return model, preprocessor
+    except Exception as e:
+        raise ModelNotFoundError(f"Failed to load or generate model artifacts: {e}")
 
 
 def validate_patient_input(patient_data: dict):

@@ -29,11 +29,21 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Make sure `src` is importable regardless of the working directory the
-# app is launched from (keeps things cross-platform / Windows-friendly).
+# Make sure `src` and project root are importable regardless of the working directory the
+# app is launched from (keeps things cross-platform / Windows & Streamlit Cloud friendly).
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
+SRC_DIR = os.path.join(BASE_DIR, "src")
+for p in [BASE_DIR, SRC_DIR]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+# Register namespace aliases so pickle / joblib unpickling succeeds under both root and package modes
+try:
+    from src import data_preprocessing as _dp
+    sys.modules.setdefault("data_preprocessing", _dp)
+    sys.modules.setdefault("src.data_preprocessing", _dp)
+except Exception:
+    pass
 
 from src.data_preprocessing import (
     load_dataset,
